@@ -19,6 +19,7 @@ import {
   useRecentEntries,
   useSlotTotals,
 } from "@/lib/data";
+import type { Entry } from "@/lib/data";
 import { getAllPanas, getPanaType, isValidPana } from "@/lib/pana";
 
 const slots = {
@@ -99,6 +100,7 @@ function Dashboard({ worker }: { worker: string }) {
   const [slot, setSlot] = useState("milan-1");
   const [entryOpen, setEntryOpen] = useState(false);
   const [activeOpen, setActiveOpen] = useState(false);
+  const [activityOpen, setActivityOpen] = useState(false);
   const [prefill, setPrefill] = useState("");
   const [toast, setToast] = useState("");
   const gameday = "today";
@@ -149,6 +151,13 @@ function Dashboard({ worker }: { worker: string }) {
             <span className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
               <Circle className="size-2.5 fill-primary text-primary" /> Live
             </span>
+            <button
+              onClick={() => setActivityOpen(true)}
+              className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold"
+            >
+              <Activity className="size-4 text-primary" />
+              {entries.length}
+            </button>
             <button
               onClick={() => setActiveOpen(true)}
               className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold"
@@ -299,50 +308,6 @@ function Dashboard({ worker }: { worker: string }) {
                 </div>
               )}
             </section>
-            <section className="rounded-2xl border border-border bg-card p-5">
-              <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <h2 className="font-bold">Live activity</h2>
-                  <p className="text-xs text-muted-foreground">
-                    Latest collections across this slot
-                  </p>
-                </div>
-                <span className="size-2 rounded-full bg-primary" />
-              </div>
-              <div className="flex flex-col gap-3">
-                {entries.length === 0 ? (
-                  <p className="py-6 text-sm text-muted-foreground">
-                    Activity will appear here.
-                  </p>
-                ) : (
-                  entries.map((e) => (
-                    <div key={e.id} className="flex items-center gap-3 text-sm">
-                      <div
-                        className={`grid size-8 shrink-0 place-items-center rounded-full text-xs font-bold ${e.type === "subtract" ? "bg-destructive/15 text-destructive" : "bg-primary/15 text-primary"}`}
-                      >
-                        {e.worker[0]}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate">
-                          <b>{e.worker}</b>{" "}
-                          {e.type === "subtract" ? "subtracted" : "added"}{" "}
-                          <b>{e.pana}</b>
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {ago(e.createdAt)}
-                        </p>
-                      </div>
-                      <span
-                        className={`font-bold ${e.type === "subtract" ? "text-destructive" : "text-foreground"}`}
-                      >
-                        {e.type === "subtract" ? "−" : "+"}
-                        {money(e.amount)}
-                      </span>
-                    </div>
-                  ))
-                )}
-              </div>
-            </section>
           </aside>
         </div>
       </div>
@@ -367,6 +332,12 @@ function Dashboard({ worker }: { worker: string }) {
           users={users}
           current={worker}
           onClose={() => setActiveOpen(false)}
+        />
+      )}
+      {activityOpen && (
+        <ActivityModal
+          entries={entries}
+          onClose={() => setActivityOpen(false)}
         />
       )}
     </main>
@@ -583,6 +554,71 @@ function ActiveModal({
               </div>
             </div>
           ))}
+        </div>
+        <button
+          onClick={onClose}
+          className="mt-5 h-11 w-full rounded-xl border border-border font-semibold"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ActivityModal({
+  entries,
+  onClose,
+}: {
+  entries: Entry[];
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4">
+      <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-5">
+        <div className="mb-5 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest text-primary">
+              Live feed
+            </p>
+            <h2 className="mt-1 text-xl font-bold">Live activity</h2>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-2 text-muted-foreground hover:bg-muted">
+            <X className="text-muted-foreground" />
+          </button>
+        </div>
+        <div className="flex flex-col gap-3 max-h-[60vh] overflow-y-auto">
+          {entries.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              No activity yet.
+            </p>
+          ) : (
+            entries.map((e) => (
+              <div key={e.id} className="flex items-center gap-3 text-sm">
+                <div
+                  className={`grid size-8 shrink-0 place-items-center rounded-full text-xs font-bold ${e.type === "subtract" ? "bg-destructive/15 text-destructive" : "bg-primary/15 text-primary"}`}
+                >
+                  {e.worker[0]}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate">
+                    <b>{e.worker}</b>{" "}
+                    {e.type === "subtract" ? "subtracted" : "added"}{" "}
+                    <b>{e.pana}</b>
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {ago(e.createdAt)}
+                  </p>
+                </div>
+                <span
+                  className={`font-bold ${e.type === "subtract" ? "text-destructive" : "text-foreground"}`}
+                >
+                  {e.type === "subtract" ? "−" : "+"}
+                  {money(e.amount)}
+                </span>
+              </div>
+            ))
+          )}
         </div>
         <button
           onClick={onClose}
