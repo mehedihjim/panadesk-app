@@ -9,6 +9,7 @@ import {
   ChevronDown,
   Circle,
   Plus,
+  Trash2,
   Users,
   X,
 } from "lucide-react";
@@ -98,6 +99,7 @@ export default function Page() {
 }
 
 function Dashboard({ worker }: { worker: string }) {
+  const [cleanOpen, setCleanOpen] = useState(false);
   const [session, setSession] = useState<"day" | "night">("day");
   const [slot, setSlot] = useState("milan-1");
   const [entryOpen, setEntryOpen] = useState(false);
@@ -178,13 +180,23 @@ function Dashboard({ worker }: { worker: string }) {
       </header>
       <div className="mx-auto max-w-[1600px] px-4 py-6 lg:px-8">
         <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[.2em] text-primary">
-              Gameday board
-            </p>
-            <h1 className="mt-1 text-3xl font-bold tracking-tight">
-              Collection overview
-            </h1>
+          <div className="flex w-full items-start justify-between gap-3 lg:w-auto lg:flex-1">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[.2em] text-primary">
+                Gameday board
+              </p>
+              <h1 className="mt-1 text-3xl font-bold tracking-tight">
+                Collection overview
+              </h1>
+            </div>
+            <button
+              onClick={() => setCleanOpen(true)}
+              aria-label="Clean all records"
+              className="mt-1 flex items-center gap-2 rounded-lg bg-destructive px-3 py-2 text-sm font-bold text-white hover:opacity-90"
+            >
+              <Trash2 className="size-4" />
+              <span className="hidden sm:inline">Clean</span>
+            </button>
           </div>
           <div className="flex gap-2 rounded-xl bg-card p-1">
             <button
@@ -342,6 +354,7 @@ function Dashboard({ worker }: { worker: string }) {
           onClose={() => setActivityOpen(false)}
         />
       )}
+      {cleanOpen && <CleanModal onClose={() => setCleanOpen(false)} />}
     </main>
   );
 }
@@ -628,6 +641,88 @@ function ActivityModal({
         >
           Close
         </button>
+      </div>
+    </div>
+  );
+}
+
+function CleanModal({ onClose }: { onClose: () => void }) {
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function run() {
+    if (!password) return setError("Enter the password.");
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch("/api/clean", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({}));
+        throw new Error(error ?? "Cleanup failed");
+      }
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Cleanup failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4">
+      <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-5">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest text-destructive">
+              Danger zone
+            </p>
+            <h2 className="mt-1 text-xl font-bold">Clean all records</h2>
+          </div>
+          <button onClick={onClose}>
+            <X className="text-muted-foreground" />
+          </button>
+        </div>
+        <p className="mb-4 text-sm text-muted-foreground">
+          This permanently deletes every entry and total for all slots. It
+          can&apos;t be undone.
+        </p>
+        <input
+          type="password"
+          autoFocus
+          value={password}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            setError("");
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") run();
+          }}
+          placeholder="Password"
+          className="h-12 w-full rounded-xl border border-border bg-background px-4 outline-none focus:ring-2 focus:ring-destructive"
+        />
+        {error && (
+          <p className="mt-3 text-sm font-medium text-destructive">{error}</p>
+        )}
+        <div className="mt-5 flex gap-2">
+          <button
+            onClick={onClose}
+            className="h-11 flex-1 rounded-xl border border-border font-semibold"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={run}
+            disabled={busy}
+            className="h-11 flex-[1.5] rounded-xl bg-destructive font-bold text-white disabled:opacity-50"
+          >
+            {busy ? "Cleaning..." : "Clean everything"}
+          </button>
+        </div>
       </div>
     </div>
   );
