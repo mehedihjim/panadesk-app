@@ -401,8 +401,9 @@ function EntryModal({
     setSaving(true);
     try {
       await addEntry({ slotId, pana, amount: n, type: kind, worker });
+      setPana("");
       setAmount("");
-      onClose();
+      inputRef.current?.focus();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to save entry.");
     } finally {
