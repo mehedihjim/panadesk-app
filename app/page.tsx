@@ -147,7 +147,14 @@ function Dashboard({ worker }: { worker: string }) {
             <div>
               <div className="font-bold">PanaDesk</div>
               <div className="text-xs text-muted-foreground">
-                Friday, 31 October 2026 · {worker}
+                {new Date().toLocaleDateString("en-IN", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                  timeZone: "Asia/Dhaka",
+                })}{" "}
+                · {worker}
               </div>
             </div>
           </div>
