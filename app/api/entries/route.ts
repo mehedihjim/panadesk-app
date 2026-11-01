@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import { adminDb } from "@/lib/firebase-admin";
+import { getAdminDb } from "@/lib/firebase-admin";
 import { isValidPana } from "@/lib/pana";
 import { todayIST } from "@/lib/pana-date";
 
 export const runtime = "nodejs";
+const adminDb = getAdminDb();
 
 export async function POST(req: Request) {
   const { slotId, pana, amount, type, worker } = await req.json();
@@ -31,7 +32,8 @@ export async function POST(req: Request) {
     await adminDb.runTransaction(async (tx) => {
       const cur = (await tx.get(totalRef)).data()?.total ?? 0;
       const next = type === "add" ? cur + amount : cur - amount;
-      if (next < 0) throw new Error("Cannot subtract more than the current total.");
+      if (next < 0)
+        throw new Error("Cannot subtract more than the current total.");
 
       tx.set(totalRef, { total: next, expireAt }, { merge: true });
       tx.set(entryRef, {

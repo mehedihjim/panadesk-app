@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase-admin";
+import { getAdminDb } from "@/lib/firebase-admin";
 
 export const runtime = "nodejs";
+const adminDb = getAdminDb();
 
 export async function POST(req: Request) {
   const { password } = await req.json().catch(() => ({}));
