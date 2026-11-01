@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Slot entries — anyone can read; writes must be valid
+    match /slots/{slotId}/entries/{entryId} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasAll(['worker','pana','amount','type','createdAt'])
+        && request.resource.data.amount is int
+        && request.resource.data.amount > 0
+        && request.resource.data.type in ['add','subtract']
+        && request.resource.data.worker is string
+        && request.resource.data.worker.size() > 0;
+      allow update, delete: if false;
+    }
+
+    // Slot totals — read freely, only increment/decrement via client batch
+    match /slots/{slotId}/totals/{pana} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Presence — read freely, each worker writes their own doc
+    match /presence/{worker} {
+      allow read: if true;
+      allow write: if true;
+    }
+  }
+}

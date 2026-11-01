@@ -15,10 +15,12 @@ import {
 import {
   addEntry,
   useActiveUsers,
-  useMockPresence,
+  usePresence,
   useRecentEntries,
   useSlotTotals,
 } from "@/lib/data";
+import { todayIST } from "@/lib/pana-date";
+
 import type { Entry } from "@/lib/data";
 import { getAllPanas, getPanaType, isValidPana } from "@/lib/pana";
 
@@ -103,8 +105,8 @@ function Dashboard({ worker }: { worker: string }) {
   const [activityOpen, setActivityOpen] = useState(false);
   const [prefill, setPrefill] = useState("");
   const [toast, setToast] = useState("");
-  const gameday = "today";
-  useMockPresence();
+  const gameday = todayIST();
+  usePresence(worker);
   const totals = useSlotTotals(gameday, slot);
   const entries = useRecentEntries(gameday, slot);
   const users = useActiveUsers(gameday);
@@ -368,30 +370,23 @@ function EntryModal({
   const totals = useSlotTotals(gameday, slotId);
   const valid = isValidPana(pana);
   const current = totals[pana]?.total ?? 0;
-  function submit() {
+  const [saving, setSaving] = useState(false);
+
+  async function submit() {
     setError("");
     const n = Number(amount);
-    if (!valid) {
-      setError("Enter a valid 3-digit pana.");
-      return;
-    }
-    if (!Number.isInteger(n) || n <= 0) {
-      setError("Amount must be a positive whole number.");
-      return;
-    }
+    if (!valid) return setError("Enter a valid 3-digit pana.");
+    if (!Number.isInteger(n) || n <= 0)
+      return setError("Amount must be a positive whole number.");
+    setSaving(true);
     try {
-      addEntry({
-        gamedayId: gameday,
-        slotId,
-        pana,
-        amount: n,
-        type: kind,
-        worker,
-      });
+      await addEntry({ slotId, pana, amount: n, type: kind, worker });
       setAmount("");
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to save entry.");
+    } finally {
+      setSaving(false);
     }
   }
   return (
@@ -497,7 +492,8 @@ function EntryModal({
             </button>
             <button
               onClick={submit}
-              className="h-12 flex-[1.5] rounded-xl bg-primary font-bold text-primary-foreground"
+              disabled={saving}
+              className="h-12 flex-[1.5] rounded-xl bg-primary font-bold text-primary-foreground disabled:opacity-50"
             >
               Save entry <Check className="ml-1 inline size-4" />
             </button>
@@ -583,7 +579,10 @@ function ActivityModal({
             </p>
             <h2 className="mt-1 text-xl font-bold">Live activity</h2>
           </div>
-          <button onClick={onClose} className="rounded-lg p-2 text-muted-foreground hover:bg-muted">
+          <button
+            onClick={onClose}
+            className="rounded-lg p-2 text-muted-foreground hover:bg-muted"
+          >
             <X className="text-muted-foreground" />
           </button>
         </div>

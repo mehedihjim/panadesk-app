@@ -1,36 +1,140 @@
-'use client'
+"use client";
 
-import { useEffect, useSyncExternalStore } from 'react'
+import { useEffect, useState } from "react";
+import {
+  collection,
+  doc,
+  limit,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  Timestamp,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
-export type Entry = { id: string; worker: string; pana: string; amount: number; type: 'add' | 'subtract'; createdAt: number }
-export type User = { name: string; lastActive: number; online: boolean }
-export type Totals = Record<string, { total: number; count: number }>
+export type Entry = {
+  id: string;
+  worker: string;
+  pana: string;
+  amount: number;
+  type: "add" | "subtract";
+  createdAt: number;
+};
+export type User = { name: string; lastActive: number; online: boolean };
+export type Totals = Record<string, { total: number }>;
 
-type State = { totals: Record<string, Totals>; entries: Record<string, Entry[]>; users: User[] }
-const seedEntries: Entry[] = [
-  { id: '1', worker: 'Ravi', pana: '123', amount: 500, type: 'add', createdAt: Date.now() - 2 * 60_000 },
-  { id: '2', worker: 'Maya', pana: '256', amount: 250, type: 'add', createdAt: Date.now() - 6 * 60_000 },
-  { id: '3', worker: 'Ravi', pana: '790', amount: 100, type: 'subtract', createdAt: Date.now() - 11 * 60_000 },
-]
-const key = (g: string, s: string) => `${g}:${s}`
-const state: State = { totals: {}, entries: { [key('today','milan-1')]: seedEntries }, users: [{ name: 'Ravi', lastActive: Date.now(), online: true }, { name: 'Maya', lastActive: Date.now() - 90_000, online: true }, { name: 'Noah', lastActive: Date.now() - 4 * 60_000, online: true }, { name: 'Isha', lastActive: Date.now() - 10 * 60_000, online: false }, { name: 'Dev', lastActive: Date.now() - 20_000, online: true }] }
-const listeners = new Set<() => void>()
-let version = 0
-const emit = () => { version += 1; listeners.forEach((listener) => listener()) }
-const subscribe = (listener: () => void) => { listeners.add(listener); return () => listeners.delete(listener) }
-const snapshot = () => version
-const ensureTotals = (k: string) => { if (!state.totals[k]) state.totals[k] = {} ; return state.totals[k] }
-for (const entry of seedEntries) { const t = ensureTotals(key('today','milan-1')); t[entry.pana] = { total: (t[entry.pana]?.total ?? 0) + (entry.type === 'add' ? entry.amount : -entry.amount), count: (t[entry.pana]?.count ?? 0) + 1 } }
+const ONLINE_MS = 90_000;
+const HEARTBEAT_MS = 30_000;
 
-export function useSlotTotals(gamedayId: string, slotId: string) { useSyncExternalStore(subscribe, snapshot, () => 0); return ensureTotals(key(gamedayId, slotId)) }
-export function useRecentEntries(gamedayId: string, slotId: string) { useSyncExternalStore(subscribe, snapshot, () => 0); return (state.entries[key(gamedayId, slotId)] ?? []).slice().sort((a,b) => b.createdAt-a.createdAt).slice(0,20) }
-export function useActiveUsers(gamedayId: string) { void gamedayId; useSyncExternalStore(subscribe, snapshot, () => 0); return state.users.filter(u => u.online) }
-export function addEntry({ gamedayId, slotId, pana, amount, type, worker }: { gamedayId: string; slotId: string; pana: string; amount: number; type: 'add'|'subtract'; worker: string }) {
-  const k = key(gamedayId, slotId); const totals = ensureTotals(k); const current = totals[pana]?.total ?? 0
-  if (type === 'subtract' && amount > current) throw new Error('Cannot subtract more than the current total.')
-  totals[pana] = { total: current + (type === 'add' ? amount : -amount), count: (totals[pana]?.count ?? 0) + 1 }
-  state.entries[k] = [{ id: crypto.randomUUID(), worker, pana, amount, type, createdAt: Date.now() }, ...(state.entries[k] ?? [])].slice(0, 20)
-  emit()
+const slotPath = (g: string, s: string) => `gamedays/${g}/slots/${s}`;
+
+export function useSlotTotals(gamedayId: string, slotId: string) {
+  const [totals, setTotals] = useState<Totals>({});
+  useEffect(() => {
+    setTotals({});
+    return onSnapshot(
+      collection(db, `${slotPath(gamedayId, slotId)}/totals`),
+      (snap) => {
+        const next: Totals = {};
+        snap.forEach((d) => (next[d.id] = { total: d.data().total ?? 0 }));
+        setTotals(next);
+      },
+    );
+  }, [gamedayId, slotId]);
+  return totals;
 }
 
-export function useMockPresence() { useEffect(() => { const id = setInterval(() => { const user = state.users[Math.floor(Math.random() * state.users.length)]; user.online = Math.random() > .25; user.lastActive = Date.now(); emit() }, 9000); return () => clearInterval(id) }, []) }
+export function useRecentEntries(gamedayId: string, slotId: string) {
+  const [entries, setEntries] = useState<Entry[]>([]);
+  useEffect(() => {
+    setEntries([]);
+    const q = query(
+      collection(db, `${slotPath(gamedayId, slotId)}/entries`),
+      orderBy("createdAt", "desc"),
+      limit(20),
+    );
+    return onSnapshot(q, (snap) => {
+      setEntries(
+        snap.docs.map((d) => {
+          const x = d.data();
+          return {
+            id: d.id,
+            worker: x.worker,
+            pana: x.pana,
+            amount: x.amount,
+            type: x.type,
+            createdAt:
+              (x.createdAt as Timestamp | null)?.toMillis() ?? Date.now(),
+          };
+        }),
+      );
+    });
+  }, [gamedayId, slotId]);
+  return entries;
+}
+
+export function usePresence(worker: string) {
+  useEffect(() => {
+    const ref = doc(db, "presence", encodeURIComponent(worker));
+    const beat = () =>
+      setDoc(
+        ref,
+        {
+          name: worker,
+          lastActive: serverTimestamp(),
+          expireAt: Timestamp.fromMillis(Date.now() + 24 * 3600_000),
+        },
+        { merge: true },
+      ).catch(() => {});
+    beat();
+    const id = setInterval(beat, HEARTBEAT_MS);
+    return () => clearInterval(id);
+  }, [worker]);
+}
+
+export function useActiveUsers(gamedayId: string) {
+  void gamedayId;
+  const [raw, setRaw] = useState<{ name: string; lastActive: number }[]>([]);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "presence"), (snap) => {
+      setRaw(
+        snap.docs.map((d) => ({
+          name: d.data().name as string,
+          lastActive:
+            (d.data().lastActive as Timestamp | null)?.toMillis() ?? Date.now(),
+        })),
+      );
+    });
+    const tick = setInterval(() => setNow(Date.now()), 15_000);
+    return () => {
+      unsub();
+      clearInterval(tick);
+    };
+  }, []);
+
+  return raw
+    .map((u): User => ({ ...u, online: now - u.lastActive < ONLINE_MS }))
+    .filter((u) => u.online);
+}
+
+export async function addEntry(input: {
+  slotId: string;
+  pana: string;
+  amount: number;
+  type: "add" | "subtract";
+  worker: string;
+}) {
+  const res = await fetch("/api/entries", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) {
+    const { error } = await res.json().catch(() => ({}));
+    throw new Error(error ?? "Unable to save entry.");
+  }
+}
