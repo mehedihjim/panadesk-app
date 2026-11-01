@@ -392,8 +392,8 @@ function EntryModal({
   const [amount, setAmount] = useState("");
   const [kind, setKind] = useState<"add" | "subtract">("add");
   const [error, setError] = useState("");
-  const [toast, setToast] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const amountRef = useRef<HTMLInputElement>(null);
   const totals = useSlotTotals(gameday, slotId);
   const valid = isValidPana(pana);
   const current = totals[pana]?.total ?? 0;
@@ -418,21 +418,13 @@ function EntryModal({
         worker,
       });
       setAmount("");
-      setToast(`${kind === "add" ? "Added" : "Removed"} ${n} on ${pana}`);
-      window.setTimeout(() => setToast(""), 2600);
-      inputRef.current?.focus();
+      onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to save entry.");
     }
   }
   return (
     <>
-      <div
-        aria-live="polite"
-        className={`fixed left-1/2 top-4 z-[60] -translate-x-1/2 rounded-xl border border-primary/30 bg-primary px-4 py-3 text-sm font-bold text-primary-foreground shadow-lg transition-all ${toast ? "opacity-100" : "pointer-events-none -translate-y-2 opacity-0"}`}
-      >
-        {toast}
-      </div>
       <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-4">
         <div className="w-full max-w-md rounded-t-3xl border border-border bg-card p-5 sm:rounded-2xl">
           <div className="mb-5 flex items-center justify-between">
@@ -464,8 +456,13 @@ function EntryModal({
               autoFocus
               value={pana}
               onChange={(e) => {
-                setPana(e.target.value.replace(/\D/g, "").slice(0, 3));
+                const val = e.target.value.replace(/\D/g, "").slice(0, 3);
+                setPana(val);
                 setError("");
+                if (val.length === 3) {
+                  // small delay so the badge renders before focus shifts
+                  window.setTimeout(() => amountRef.current?.focus(), 50);
+                }
               }}
               placeholder="000"
               className="h-16 w-full rounded-xl border border-border bg-background px-4 text-3xl font-bold tracking-[.35em] outline-none focus:ring-2 focus:ring-primary"
@@ -492,10 +489,14 @@ function EntryModal({
             Amount
           </label>
           <input
+            ref={amountRef}
             id="amount"
             inputMode="numeric"
             value={amount}
             onChange={(e) => setAmount(e.target.value.replace(/\D/g, ""))}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") submit();
+            }}
             placeholder="0"
             className="h-14 w-full rounded-xl border border-border bg-background px-4 text-xl font-semibold outline-none focus:ring-2 focus:ring-primary"
           />
