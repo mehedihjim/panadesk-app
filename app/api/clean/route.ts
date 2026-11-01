@@ -12,7 +12,10 @@ export async function POST(req: Request) {
   }
 
   try {
-    await adminDb.recursiveDelete(adminDb.collection("gamedays"));
+    await Promise.all([
+      adminDb.recursiveDelete(adminDb.collection("gamedays")),
+      adminDb.recursiveDelete(adminDb.collection("presence")),
+    ]);
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Cleanup failed" }, { status: 500 });
