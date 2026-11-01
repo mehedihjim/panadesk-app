@@ -13,6 +13,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { Logo } from "@/components/logo";
 import {
   addEntry,
   useActiveUsers,
@@ -55,9 +56,7 @@ function NameEntry({ onSave }: { onSave: (name: string) => void }) {
     <main className="min-h-screen grid place-items-center p-6">
       <div className="w-full max-w-sm">
         <div className="mb-10 flex items-center gap-3">
-          <div className="grid size-10 place-items-center rounded-xl bg-primary font-black text-primary-foreground">
-            P
-          </div>
+          <Logo className="size-10" />
           <span className="text-xl font-bold tracking-tight">PanaDesk</span>
         </div>
         <p className="mb-2 text-sm font-semibold text-primary">GOOD EVENING</p>
@@ -137,13 +136,11 @@ function Dashboard({ worker }: { worker: string }) {
     setEntryOpen(true);
   };
   return (
-    <main className="min-h-screen pb-24">
+    <main className="flex min-h-screen flex-col">
       <header className="border-b border-border">
         <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-4 px-4 py-4 lg:px-8">
           <div className="flex items-center gap-3">
-            <div className="grid size-9 place-items-center rounded-lg bg-primary font-black text-primary-foreground">
-              P
-            </div>
+            <Logo className="size-9" />
             <div>
               <div className="font-bold">PanaDesk</div>
               <div className="text-xs text-muted-foreground">
@@ -185,7 +182,7 @@ function Dashboard({ worker }: { worker: string }) {
           </div>
         </div>
       </header>
-      <div className="mx-auto max-w-[1600px] px-4 py-6 lg:px-8">
+      <div className="mx-auto w-full max-w-[1600px] flex-1 px-4 py-6 lg:px-8">
         <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex w-full items-start justify-between gap-3 lg:w-auto lg:flex-1">
             <div>
@@ -332,6 +329,7 @@ function Dashboard({ worker }: { worker: string }) {
           </aside>
         </div>
       </div>
+      <Footer />
       <button
         onClick={() => openEntry()}
         className="fixed bottom-5 right-5 flex size-14 items-center justify-center rounded-full bg-primary text-2xl font-light text-primary-foreground shadow-xl md:hidden"
@@ -733,5 +731,26 @@ function CleanModal({ onClose }: { onClose: () => void }) {
         </div>
       </div>
     </div>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="border-t border-border pb-6 sm:pb-0">
+      <div className="mx-auto flex max-w-[1600px] flex-col items-center justify-between gap-2 px-4 py-5 text-xs text-muted-foreground sm:flex-row lg:px-8">
+        <p>© {new Date().getFullYear()} PanaDesk. All rights reserved.</p>
+        <p>
+          Built by{" "}
+          <a
+            href="https://beacons.ai/mhjim"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-foreground hover:text-primary"
+          >
+            MH Jim
+          </a>
+        </p>
+      </div>
+    </footer>
   );
 }
