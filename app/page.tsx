@@ -426,8 +426,11 @@ function EntryModal({
                 setPana(val);
                 setError("");
                 if (val.length === 3) {
-                  // small delay so the badge renders before focus shifts
-                  window.setTimeout(() => amountRef.current?.focus(), 50);
+                  if (isValidPana(val)) {
+                    window.setTimeout(() => amountRef.current?.focus(), 50);
+                  } else {
+                    setError("Invalid pana number.");
+                  }
                 }
               }}
               placeholder="000"
